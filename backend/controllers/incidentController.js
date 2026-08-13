@@ -1,3 +1,4 @@
+const fs = require('fs');
 const Incident = require('../models/Incident');
 
 exports.createIncident = async (req, res) => {
@@ -15,9 +16,20 @@ exports.createIncident = async (req, res) => {
       description,
     };
 
+    if (req.file) {
+      incidentData.photo = `/uploads/incidents/${req.file.filename}`;
+    }
+
     const incident = await Incident.create(incidentData);
     res.status(201).json({ message: 'Incident reported successfully', incident });
   } catch (err) {
+    if (req.file) {
+      try {
+        fs.unlink(req.file.path);
+      } catch (e) {
+        console.error('Failed to remove uploaded file:', e.message);
+      }
+    }
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map((e) => e.message);
       return res.status(400).json({ message: messages.join('. ') });

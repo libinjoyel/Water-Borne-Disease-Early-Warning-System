@@ -80,10 +80,7 @@ export const incidentAPI = {
     return API.get(`/incidents?${q}`);
   },
   getById: (id) => API.get(`/incidents/${id}`),
-  create: (formData) =>
-    API.post('/incidents', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+  create: (formData) => API.post('/incidents', formData),
 };
 
 // Stats

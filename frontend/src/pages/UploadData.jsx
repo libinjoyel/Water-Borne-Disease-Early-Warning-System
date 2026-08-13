@@ -126,15 +126,17 @@ export default function UploadData() {
     setIsFormLoading(true);
     setFormError(null);
 
-    const payload = {
-      reporterName: communityForm.reporterName || 'Anonymous',
-      location: communityForm.location,
-      waterColor: communityForm.waterColor,
-      description: communityForm.description,
-    };
+    const formData = new FormData();
+    formData.append('reporterName', communityForm.reporterName || 'Anonymous');
+    formData.append('location', communityForm.location);
+    formData.append('waterColor', communityForm.waterColor);
+    formData.append('description', communityForm.description);
+    if (communityForm.photo) {
+      formData.append('photo', communityForm.photo);
+    }
 
     try {
-      await incidentAPI.create(payload);
+      await incidentAPI.create(formData);
       setIsFormSuccess(true);
       setTimeout(() => {
         setIsFormSuccess(false);
