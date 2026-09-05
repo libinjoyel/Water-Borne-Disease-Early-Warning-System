@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, CheckCircle2, ShieldAlert, Image, FileText, AlertCircle, FileSpreadsheet, Trash2, Sparkles } from 'lucide-react';
+import { incidentAPI } from '../services/api';
 
 export default function UploadData() {
   const [csvFile, setCsvFile] = useState(null);
@@ -138,9 +139,27 @@ export default function UploadData() {
     return Object.keys(errors).length === 0;
   };
 
-  const submitManualReport = (e) => {
+  const [isFormLoading, setIsFormLoading] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  const submitManualReport = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
+    if (!validateForm()) return;
+
+    setIsFormLoading(true);
+    setFormError(null);
+
+    const formData = new FormData();
+    formData.append('reporterName', communityForm.reporterName || 'Anonymous');
+    formData.append('location', communityForm.location);
+    formData.append('waterColor', communityForm.color);
+    formData.append('description', communityForm.description);
+    if (communityForm.photo) {
+      formData.append('photo', communityForm.photo);
+    }
+
+    try {
+      await incidentAPI.create(formData);
       setIsFormSuccess(true);
       setTimeout(() => {
         setIsFormSuccess(false);
@@ -151,7 +170,13 @@ export default function UploadData() {
           description: '',
           photo: null
         });
+        setPhotoPreview(null);
+        setScanResult(null);
       }, 4000);
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Failed to submit incident. Please try again.');
+    } finally {
+      setIsFormLoading(false);
     }
   };
 
