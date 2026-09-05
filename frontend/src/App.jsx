@@ -8,6 +8,7 @@ import MapPage from './pages/MapPage';
 import RiskChecker from './pages/RiskChecker';
 import UploadData from './pages/UploadData';
 import AboutContact from './pages/AboutContact';
+import AIAssistant from './pages/AIAssistant';
 
 function App() {
   const [isAdminMode, setIsAdminMode] = useState(() => {
@@ -35,6 +36,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard isAdminMode={isAdminMode} />} />
             <Route path="/map" element={<MapPage isAdminMode={isAdminMode} />} />
             <Route path="/risk-checker" element={<RiskChecker />} />
+            <Route path="/ai-assistant" element={<AIAssistant />} />
             <Route path="/upload" element={<UploadData isAdminMode={isAdminMode} />} />
             <Route path="/about" element={<AboutContact />} />
           </Routes>

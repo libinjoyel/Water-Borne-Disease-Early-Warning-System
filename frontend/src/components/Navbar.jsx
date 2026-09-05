@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Droplet, MapPin, Activity, ShieldAlert, UploadCloud, Sun, Moon, Menu, X, Info } from 'lucide-react';
+import { Droplet, MapPin, Activity, ShieldAlert, UploadCloud, Sun, Moon, Menu, X, Info, Sparkles } from 'lucide-react';
 
 export default function Navbar({ isAdminMode, toggleAdminMode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,6 +53,7 @@ export default function Navbar({ isAdminMode, toggleAdminMode }) {
     { name: 'Dashboard', path: '/dashboard', icon: Activity },
     { name: 'Outbreak Map', path: '/map', icon: MapPin },
     { name: 'Risk Checker', path: '/risk-checker', icon: ShieldAlert },
+    { name: 'AI Assistant', path: '/ai-assistant', icon: Sparkles },
     { name: 'Upload Data', path: '/upload', icon: UploadCloud },
     { name: 'About & Contact', path: '/about', icon: Info },
   ];
