@@ -88,4 +88,12 @@ export const statsAPI = {
   getSummary: () => API.get('/stats/summary'),
 };
 
+// AI Analysis
+export const aiAPI = {
+  analyzePdf: (formData) => API.post('/ai/analyze', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  predictRisk: (data) => API.post('/ai/predict', data),
+};
+
 export default API;

@@ -13,6 +13,7 @@ const riskRoutes = require("./routes/riskRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const incidentRoutes = require("./routes/incidentRoutes");
 const statsRoutes = require("./routes/statsRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 const app = express();
 const ai = process.env.GOOGLE_API_KEY ? new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY }) : null;
@@ -34,6 +35,7 @@ app.use("/api/risk", riskRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/incidents", incidentRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.post('/api/ai/chat', async (req, res) => {
     try {
@@ -75,7 +77,7 @@ app.post('/api/ai/chat', async (req, res) => {
             config: {
                 systemInstruction,
                 temperature: 0.4,
-                maxOutputTokens: 512,
+                maxOutputTokens: 4096,
             },
         });
 
@@ -84,6 +86,15 @@ app.post('/api/ai/chat', async (req, res) => {
         console.error('AI chat error:', error);
         return res.status(500).json({ error: 'Failed to generate AI response.' });
     }
+});
+
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  const status = Number(err.status) || 500;
+  if (status === 429) {
+    return res.status(429).json({ error: 'AI service rate limit reached. Please wait a moment and try again.' });
+  }
+  res.status(status).json({ error: err.message || 'Internal server error.' });
 });
 
 const PORT = process.env.PORT || 5000;

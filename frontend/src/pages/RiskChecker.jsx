@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, User, Droplet, Sparkles, Download, ArrowRight, ArrowLeft, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, User, Droplet, Sparkles, Download, ArrowRight, ArrowLeft, RefreshCw, AlertTriangle, LoaderCircle } from 'lucide-react';
+import { aiAPI } from '../services/api';
 
 export default function RiskChecker() {
   const [step, setStep] = useState(1);
@@ -21,6 +22,11 @@ export default function RiskChecker() {
   
   const [showResult, setShowResult] = useState(false);
   const [calculationRisk, setCalculationRisk] = useState({ score: 0, level: 'Low', color: 'text-emerald-500 bg-emerald-500/10' });
+
+  const [aiPrediction, setAiPrediction] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const [showAi, setShowAi] = useState(false);
 
   const totalSteps = 3;
 
@@ -56,17 +62,14 @@ export default function RiskChecker() {
   const calculateRiskScore = () => {
     let score = 0;
 
-    // Symptom weight points
     if (formData.symptoms.diarrhea) score += 35;
     if (formData.symptoms.vomiting) score += 25;
     if (formData.symptoms.fever) score += 20;
     if (formData.symptoms.cramps) score += 15;
 
-    // Environmental weight points
     if (formData.waterSource === 'Open Well' || formData.waterSource === 'Borewell') score += 15;
     if (formData.recentFlooding === 'Yes') score += 25;
 
-    // Normalize max to 100
     score = Math.min(100, score);
 
     let level = 'Low';
@@ -82,6 +85,31 @@ export default function RiskChecker() {
 
     setCalculationRisk({ score, level, color });
     setShowResult(true);
+  };
+
+  const getAiPrediction = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiPrediction(null);
+    setShowAi(true);
+
+    try {
+      const response = await aiAPI.predictRisk({
+        patientInfo: {
+          age: formData.age,
+          gender: formData.gender,
+          district: formData.district,
+        },
+        symptoms: formData.symptoms,
+        waterSource: formData.waterSource,
+        recentFlooding: formData.recentFlooding,
+      });
+      setAiPrediction(response.data);
+    } catch (err) {
+      setAiError(err.response?.data?.error || 'Failed to get AI prediction. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const resetWizard = () => {
@@ -101,14 +129,29 @@ export default function RiskChecker() {
     });
     setStep(1);
     setShowResult(false);
+    setAiPrediction(null);
+    setAiError(null);
+    setShowAi(false);
   };
 
-  // Compile print trigger (for PDF simulated report)
   const triggerPdfDownload = () => {
     window.print();
   };
 
   const progressPercent = (step / totalSteps) * 100;
+
+  const renderMarkdown = (text) => {
+    if (!text) return null;
+    return text.split('\n').map((line, i) => {
+      if (line.startsWith('## ')) return <h3 key={i} className="text-sm font-bold text-teal-600 dark:text-teal-400 mt-4 mb-2">{line.replace(/^##\s*/, '')}</h3>;
+      if (line.startsWith('### ')) return <h4 key={i} className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-3 mb-1">{line.replace(/^###\s*/, '')}</h4>;
+      if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-bold text-xs text-slate-800 dark:text-slate-200 mt-2">{line.replace(/\*\*/g, '')}</p>;
+      if (line.startsWith('- ')) return <li key={i} className="text-xs text-slate-600 dark:text-slate-400 ml-4 list-disc">{line.replace(/^-\s*/, '')}</li>;
+      if (line.trim() === '---') return <hr key={i} className="my-3 border-slate-200 dark:border-slate-700" />;
+      if (line.trim() === '') return <br key={i} />;
+      return <p key={i} className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{line}</p>;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 pb-28">
@@ -119,9 +162,9 @@ export default function RiskChecker() {
           <div className="inline-flex p-3 bg-teal-500/10 rounded-2xl text-teal-600 dark:text-teal-400 border border-teal-500/20">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">AI infection Risk Checker</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">AI Infection Risk Checker</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Evaluate your localized biological vulnerability based on symptoms, hydrology index, and regional active clusters.
+            Evaluate your localized biological vulnerability based on symptoms, hydrology index, and regional active clusters. Powered by AI analysis.
           </p>
         </div>
 
@@ -155,7 +198,6 @@ export default function RiskChecker() {
 
                 {/* Wizard Steps */}
                 <div className="py-4 min-h-[220px]">
-                  {/* Step 1: User details & location */}
                   {step === 1 && (
                     <motion.div
                       initial={{ opacity: 0, x: 10 }}
@@ -226,7 +268,6 @@ export default function RiskChecker() {
                     </motion.div>
                   )}
 
-                  {/* Step 2: Symptom checklist */}
                   {step === 2 && (
                     <motion.div
                       initial={{ opacity: 0, x: 10 }}
@@ -264,7 +305,6 @@ export default function RiskChecker() {
                     </motion.div>
                   )}
 
-                  {/* Step 3: Environmental questions */}
                   {step === 3 && (
                     <motion.div
                       initial={{ opacity: 0, x: 10 }}
@@ -277,7 +317,6 @@ export default function RiskChecker() {
                         Hydrology & Environment Factors
                       </h3>
 
-                      {/* Water Source Dropdown */}
                       <div className="flex flex-col space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Primary Drinking Water Source</label>
                         <select
@@ -293,7 +332,6 @@ export default function RiskChecker() {
                         </select>
                       </div>
 
-                      {/* Flooding Toggle */}
                       <div className="flex flex-col space-y-2">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Has your local neighborhood experienced recent flooding or pipeline leaks?</label>
                         <div className="grid grid-cols-2 gap-3">
@@ -340,16 +378,14 @@ export default function RiskChecker() {
                 </div>
               </motion.div>
             ) : (
-              /* Results view screen */
               <motion.div
                 key="result"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="space-y-6 text-center"
               >
-                {/* Visual Gauge representation */}
+                {/* Visual Gauge */}
                 <div className="relative w-40 h-40 mx-auto flex items-center justify-center">
-                  {/* Outer circle track */}
                   <svg className="w-full h-full transform -rotate-90">
                     <circle cx="80" cy="80" r="70" fill="transparent" stroke="rgba(241,245,249,0.1)" strokeWidth="12" />
                     <circle 
@@ -366,7 +402,6 @@ export default function RiskChecker() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  {/* Central Text */}
                   <div className="absolute text-center">
                     <span className="block text-3xl font-extrabold font-mono text-slate-900 dark:text-white">{calculationRisk.score}%</span>
                     <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Threat Index</span>
@@ -379,17 +414,79 @@ export default function RiskChecker() {
                     <span className="font-extrabold text-base tracking-wide uppercase">
                       {calculationRisk.level} Threat Risk detected
                     </span>
-                    
-                    {/* Action Guideline instructions */}
                     <p className="text-xs leading-relaxed max-w-sm text-center">
-                      {calculationRisk.level === 'High' && "Seek Medical Attention Immediately. Severe clinical factors (diarrhea/vomiting clusters) identified alongside regional contamination indicators. Report details to safety teams."}
-                      {calculationRisk.level === 'Medium' && "Monitor & Boil Water. Moderate risk indices. Heavy local rainfall indicates elevated water contamination risk. Ensure all domestic drinking supply is boiled for 3 minutes."}
-                      {calculationRisk.level === 'Low' && "Safe. Continue standard sanitation procedures. No acute environmental or symptom vectors reported in your immediate cluster zone."}
+                      {calculationRisk.level === 'High' && "Seek Medical Attention Immediately. Severe clinical factors identified alongside regional contamination indicators."}
+                      {calculationRisk.level === 'Medium' && "Monitor & Boil Water. Moderate risk indices. Ensure all domestic drinking supply is boiled for 3 minutes."}
+                      {calculationRisk.level === 'Low' && "Safe. Continue standard sanitation procedures. No acute environmental or symptom vectors reported."}
                     </p>
                   </div>
                 </div>
 
-                {/* Patient Summary details for printing */}
+                {/* AI Prediction Button */}
+                {!showAi && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <button
+                      onClick={getAiPrediction}
+                      disabled={aiLoading}
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-teal-600 to-sky-500 text-white text-sm font-bold shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      {aiLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {aiLoading ? 'AI Analyzing...' : 'Get AI-Powered Deep Analysis'}
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* AI Prediction Result */}
+                <AnimatePresence>
+                  {showAi && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="text-left max-w-lg mx-auto"
+                    >
+                      {aiLoading && (
+                        <div className="flex items-center justify-center gap-3 py-8">
+                          <LoaderCircle className="h-6 w-6 text-teal-500 animate-spin" />
+                          <span className="text-sm text-slate-500 dark:text-slate-400 font-semibold">AI is analyzing your health profile...</span>
+                        </div>
+                      )}
+
+                      {aiError && (
+                        <div className="p-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-xs text-rose-600 dark:text-rose-300 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          {aiError}
+                        </div>
+                      )}
+
+                      {aiPrediction && (
+                        <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-1">
+                          <div className="flex items-center gap-1.5 mb-3">
+                            <Sparkles className="h-4 w-4 text-teal-500 animate-pulse" />
+                            <span className="text-xs font-bold text-teal-600 dark:text-teal-400">AI Risk Assessment</span>
+                          </div>
+                          {aiPrediction.riskScore !== null && (
+                            <div className="flex items-center gap-3 mb-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                              <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{aiPrediction.riskScore}%</span>
+                              <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                aiPrediction.riskLevel === 'High' || aiPrediction.riskLevel === 'Very High'
+                                  ? 'bg-rose-500/10 text-rose-500'
+                                  : aiPrediction.riskLevel === 'Moderate'
+                                  ? 'bg-amber-500/10 text-amber-500'
+                                  : 'bg-emerald-500/10 text-emerald-500'
+                              }`}>
+                                {aiPrediction.riskLevel} Risk
+                              </span>
+                            </div>
+                          )}
+                          {renderMarkdown(aiPrediction.prediction)}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Patient Summary */}
                 <div id="patient-report-card" className="hidden print:block text-left text-xs text-slate-800 space-y-2.5 p-6 border rounded-xl border-slate-300">
                   <h2 className="text-sm font-bold border-b pb-1 text-slate-900">AquaGuard - Biosentinel Risk Report</h2>
                   <div className="grid grid-cols-2 gap-2">
@@ -407,6 +504,11 @@ export default function RiskChecker() {
                   <div className="pt-2 border-t font-semibold">
                     Calculated Threat Index: {calculationRisk.score}% ({calculationRisk.level} Risk)
                   </div>
+                  {aiPrediction && (
+                    <div className="pt-2 border-t">
+                      <strong>AI Risk Assessment:</strong> {aiPrediction.riskScore}% ({aiPrediction.riskLevel})
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
